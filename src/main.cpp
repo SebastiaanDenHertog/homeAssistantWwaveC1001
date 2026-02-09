@@ -14,22 +14,32 @@
 #include "driver/rtc_io.h"
 #include <WiFi.h>
 
-DFRobot_HumanDetection hu(&Serial1);
+DFRobot_HumanDetection hu(&Serial2);
 
 #define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
 #define USE_EXT0_WAKEUP          1               // 1 = EXT0 wakeup, 0 = EXT1 wakeup
-#define WAKEUP_GPIO              GPIO_NUM_33     // Only RTC IO are allowed - ESP32 Pin example
+#define WAKEUP_GPIO              GPIO_NUM_27     // Only RTC IO are allowed - ESP32 Pin example
 RTC_DATA_ATTR int bootCount = 0;
 
 void initWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin("LeducIot", "");
-  Serial.print("Connecting to WiFi ..");
+  Serial.print("Connecting to WiFi ");
+  int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(1000);
+    i++;
+    if (i == 10) break;
   }
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.println("Connected to the WiFi network");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println();
+    Serial.println("Failed to connect to WiFi");
+  }
 }
 
 /*
@@ -52,14 +62,15 @@ void print_wakeup_reason() {
 }
 
 void setup() {
-  WiFi.mode(WIFI_STA);
-  initWiFi();
   Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+  WiFiClass::mode(WIFI_STA);
+  initWiFi();
 
   Serial.println("Start initialization");
   while (hu.begin() != 0) {
-    Serial.println("init error!!!");
-    delay(1000);
+    Serial.print(".");
+    delay(100);
   }
   Serial.println("Initialization successful");
 
@@ -82,7 +93,26 @@ void setup() {
       Serial.println("Read error");
   }
 
-  hu.configLEDLight(hu.eHPLed, 1);  // Set HP LED switch, it will not light up even if the sensor detects a person when set to 0.
+  hu.sensorRet();
+
+  hu.dmInstallAngle(0,0,180);
+  hu.dmInstallHeight(200);
+
+  int i = 0;
+  while (true) {
+    hu.sensorRet();
+    Serial.println(hu.dmGetInstallHeight()); delay(100); i++;
+    if (i > 100) {
+      break;
+    }
+  }
+
+  hu.configLEDLight(hu.eHPLed, 1);
+  delay(100);
+  hu.configLEDLight(hu.eHPLed, 0);  // Set HP LED switch, it will not light up even if the sensor detects a person when set to 0.
+  delay(100);
+  hu.configLEDLight(hu.eHPLed, 1);
+  delay(100);
   hu.sensorRet();                   // Module reset, must perform sensorRet after setting data, otherwise the sensor may not be usable
 
   Serial.print("HP LED status:");
@@ -144,36 +174,5 @@ void setup() {
 }
 
 void loop() {
-  Serial.print("Existing information:");
-  switch (hu.smHumanData(hu.eHumanPresence)) {
-    case 0:
-      Serial.println("No one is present");
-      break;
-    case 1:
-      Serial.println("Someone is present");
-      break;
-    default:
-      Serial.println("Read error");
-  }
-
-  Serial.print("Motion information:");
-  switch (hu.smHumanData(hu.eHumanMovement)) {
-    case 0:
-      Serial.println("None");
-      break;
-    case 1:
-      Serial.println("Still");
-      break;
-    case 2:
-      Serial.println("Active");
-      break;
-    default:
-      Serial.println("Read error");
-  }
-
-  Serial.printf("Body movement parameters:%d\n", hu.smHumanData(hu.eHumanMovingRange));
-  Serial.printf("Respiration rate:%d\n", hu.getBreatheValue());
-  Serial.printf("Heart rate:%d\n", hu.getHeartRate());
-  Serial.println();
-  delay(1000);
+  Serial.println("loop");
 }

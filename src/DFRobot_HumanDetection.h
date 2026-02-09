@@ -445,7 +445,7 @@ public:
      * @fn dmHumanConfig
      * @brief Configure human configuration in fall mode
      * @param con Configuration selection
-     * @param da Configuration data
+     * @param data Configuration data
      * @return Configuration status
      */
     uint8_t dmHumanConfig(eDmHumanConfig con, uint16_t data);
