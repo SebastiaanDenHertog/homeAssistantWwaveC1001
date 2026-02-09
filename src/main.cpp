@@ -10,107 +10,50 @@
  */
 
 #include <Arduino.h>
-#define c1001
-#ifdef C4001
-
-#include "DFRobot_C4001.h"
-
-DFRobot_C4001_UART radar(&Serial1 ,9600);
-
-void setup()
-{
-  Serial.begin(115200);
-  while(!Serial){}
-  while(!radar.begin()){
-    Serial.println("NO Deivces !");
-    delay(1000);
-  }
-  Serial.println("Device connected!");
-
-  // exist Mode
-  radar.setSensorMode(eExitMode);
-
-  sSensorStatus_t data;
-  data = radar.getStatus();
-  //  0 stop  1 start
-  Serial.print("work status  = ");
-  Serial.println(data.workStatus);
-
-  //  0 is exist   1 speed
-  Serial.print("work mode  = ");
-  Serial.println(data.workMode);
-
-  //  0 no init    1 init success
-  Serial.print("init status = ");
-  Serial.println(data.initStatus);
-  Serial.println();
-
-  /*
-   * min Detection range Minimum distance, unit cm, range 0.3~25m (30~2500), not exceeding max, otherwise the function is abnormal.
-   * max Detection range Maximum distance, unit cm, range 2.4~25m (240~2500)
-   * trig Detection range Maximum distance, unit cm, default trig = max
-   */
-  if(radar.setDetectionRange(/*min*/30, /*max*/2000, /*trig*/2000)){
-    Serial.println("set detection range successfully!");
-  }
-  // set trigger sensitivity 0 - 9
-  if(radar.setTrigSensitivity(1)){
-    Serial.println("set trig sensitivity successfully!");
-  }
-
-  // set keep sensitivity 0 - 9
-  if(radar.setKeepSensitivity(2)){
-    Serial.println("set keep sensitivity successfully!");
-  }
-  /*
-   * trig Trigger delay, unit 0.01s, range 0~2s (0~200)
-   * keep Maintain the detection timeout, unit 0.5s, range 2~1500 seconds (4~3000)
-   */
-  if(radar.setDelay(/*trig*/100, /*keep*/4)){
-    Serial.println("set delay successfully!");
-  }
-
-
-  // get confige params
-  Serial.print("trig sensitivity = ");
-  Serial.println(radar.getTrigSensitivity());
-  Serial.print("keep sensitivity = ");
-  Serial.println(radar.getKeepSensitivity());
-
-  Serial.print("min range = ");
-  Serial.println(radar.getMinRange());
-  Serial.print("max range = ");
-  Serial.println(radar.getMaxRange());
-  Serial.print("trig range = ");
-  Serial.println(radar.getTrigRange());
-
-  Serial.print("keep time = ");
-  Serial.println(radar.getKeepTimerout());
-
-  Serial.print("trig delay = ");
-  Serial.println(radar.getTrigDelay());
-
-}
-
-void loop()
-{
-  // Determine whether the object is moving
-  if(radar.motionDetection()){
-    Serial.println("exist motion");
-    Serial.println();
-  }
-  delay(100);
-}
-
-#endif
-
-#ifdef c1001
-
 #include "DFRobot_HumanDetection.h"
+#include "driver/rtc_io.h"
+#include <WiFi.h>
 
 DFRobot_HumanDetection hu(&Serial1);
 
+#define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
+#define USE_EXT0_WAKEUP          1               // 1 = EXT0 wakeup, 0 = EXT1 wakeup
+#define WAKEUP_GPIO              GPIO_NUM_33     // Only RTC IO are allowed - ESP32 Pin example
+RTC_DATA_ATTR int bootCount = 0;
+
+void initWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin("LeducIot", "");
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+  Serial.println(WiFi.localIP());
+}
+
+/*
+  Method to print the reason by which ESP32
+  has been awaken from sleep
+*/
+void print_wakeup_reason() {
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
+    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+  }
+}
+
 void setup() {
+  WiFi.mode(WIFI_STA);
+  initWiFi();
   Serial.begin(115200);
 
   Serial.println("Start initialization");
@@ -156,6 +99,48 @@ void setup() {
 
   Serial.println();
   Serial.println();
+
+  //Increment boot number and print it every reboot
+  ++bootCount;
+  Serial.println("Boot number: " + String(bootCount));
+
+  //Print the wakeup reason for ESP32
+  print_wakeup_reason();
+
+  /*
+    First we configure the wake up source
+    We set our ESP32 to wake up for an external trigger.
+    There are two types for ESP32, ext0 and ext1 .
+    ext0 uses RTC_IO to wakeup thus requires RTC peripherals
+    to be on while ext1 uses RTC Controller so does not need
+    peripherals to be powered on.
+    Note that using internal pullups/pulldowns also requires
+    RTC peripherals to be turned on.
+  */
+#if USE_EXT0_WAKEUP
+  esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, 1);  //1 = High, 0 = Low
+  // Configure pullup/downs via RTCIO to tie wakeup pins to inactive level during deepsleep.
+  // EXT0 resides in the same power domain (RTC_PERIPH) as the RTC IO pullup/downs.
+  // No need to keep that power domain explicitly, unlike EXT1.
+  rtc_gpio_pullup_dis(WAKEUP_GPIO);
+  rtc_gpio_pulldown_en(WAKEUP_GPIO);
+
+#else  // EXT1 WAKEUP
+  //If you were to use ext1, you would use it like
+  esp_sleep_enable_ext1_wakeup_io(BUTTON_PIN_BITMASK(WAKEUP_GPIO), ESP_EXT1_WAKEUP_ANY_HIGH);
+  /*
+    If there are no external pull-up/downs, tie wakeup pins to inactive level with internal pull-up/downs via RTC IO
+         during deepsleep. However, RTC IO relies on the RTC_PERIPH power domain. Keeping this power domain on will
+         increase some power comsumption. However, if we turn off the RTC_PERIPH domain or if certain chips lack the RTC_PERIPH
+         domain, we will use the HOLD feature to maintain the pull-up and pull-down on the pins during sleep.
+  */
+  rtc_gpio_pulldown_en(WAKEUP_GPIO);  // GPIO33 is tie to GND in order to wake up in HIGH
+  rtc_gpio_pullup_dis(WAKEUP_GPIO);   // Disable PULL_UP in order to allow it to wakeup on HIGH
+#endif
+  //Go to sleep now
+  Serial.println("Going to sleep now");
+  esp_deep_sleep_start();
+  Serial.println("This will never be printed");
 }
 
 void loop() {
@@ -192,5 +177,3 @@ void loop() {
   Serial.println();
   delay(1000);
 }
-
-#endif
