@@ -79,9 +79,6 @@ void loop() {
       Serial.println("Read error");
   }
 
-  Serial.printf("Body movement parameters:%d\n", hu.smHumanData(hu.eHumanMovingRange));
-  Serial.printf("Respiration rate:%d\n", hu.getBreatheValue());
-  Serial.printf("Heart rate:%d\n", hu.getHeartRate());
   Serial.println();
   delay(1000);
 }
