@@ -1,0 +1,165 @@
+body{
+  background-color: rgb(140, 166, 184);
+}
+
+html {
+}
+
+.ledstrip {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  padding: 1rem 3rem 3rem;
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: start;
+  align-items: start;
+  gap: 1rem;
+}
+
+.ledstrip .content {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 2rem;
+}
+
+.ledstrip .strip {
+  width: 300px;
+  /* background-color: #444; */
+  padding: .3rem 1rem 1rem;
+  border-radius: 1.5rem;
+  border-color: #111;
+  transition: 1s;
+  height: fit-content;
+}
+
+.ledstrip .strip:hover {
+  transition: .1s;
+}
+
+.ledstrip .strip>.header {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ledstrip .add-segment {
+  padding: 0 1rem;
+  display: grid;
+  align-items: center;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: .2rem .5rem;
+  justify-content: space-between;
+  align-items: center;
+  place-items: center;
+}
+
+.ledstrip .segments {
+  padding: 0 1rem;
+  display: grid;
+  grid-template-columns: .1fr 1fr 1fr 1fr 1fr 1fr;
+  align-items: center;
+  gap: .2rem .5rem;
+  justify-content: space-between;
+  align-items: center;
+  place-items: center;
+}
+
+.ledstrip .segments.editing {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.ledstrip .segment-preview .sub,
+.ledstrip .segments .sub {
+  font-size: .8rem;
+  color: #aaa;
+}
+
+.ledstrip .segments>button {
+  justify-self: end;
+}
+
+.ledstrip header {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  height: fit-content;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.ledstrip main {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: space-evenly;
+}
+
+.ledstrip footer {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  height: fit-content;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.ledstrip input.fancy {
+  background-color: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-bottom: #111 solid 1px;
+  outline: none;
+  color: rgb(50, 50, 50);
+  padding: .3rem .8rem;
+  transition: .1s;
+  border-radius: .3rem;
+  font-size: 1rem;
+  width: 4.2rem;
+}
+
+.ledstrip .fancy:hover, 
+.ledstrip .fancy:focus {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.ledstrip .settings {
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+.ledstrip .settings:hover {
+  transition: .5s;
+  scale: 1.05;
+}
+
+.ledstrip .gpio-list {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 1rem;
+}
+
+.ledstrip .gpio-item {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: .3rem .8rem;
+  border-radius: .3rem;
+  box-shadow: rgba(0, 0, 0, 0.25) 1px 1px 2px;
+  transition: .1s;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem;
+}
+
+.ledstrip .gpio-item:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  box-shadow: rgba(0, 0, 0, 0.25) 5px 4px 2px;
+}
+
+.ledstrip .red {
+  color: rgb(220, 50, 50);
+}
+
+.ledstrip .green {
+  color: rgb(50, 220, 50);
+}

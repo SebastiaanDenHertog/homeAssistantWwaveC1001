@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>C1001 MMWave controller ESP webserver</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link rel="stylesheet" type="text/css" href="bootstrap.min.css" />
+</head>
+<body>
+<h2>C1001 MMWave controller ESP webserver</h2>
+<table>
+    <tr>
+        <td>Chip ID:</td>
+        <td>%CHIP_ID%</td>
+    </tr>
+    <tr>
+        <td>Flash Chip Size:</td>
+        <td>%FLASH_CHIP_SIZE% MB</td>
+    </tr>
+    <tr>
+        <td>Flash Chip Speed:</td>
+        <td>%FLASH_CHIP_SPEED% MHz</td>
+    </tr>
+    <tr>
+        <td>Sketch Size:</td>
+        <td>%SKETCH_SIZE% KB</td>
+    </tr>
+    <tr>
+        <td>Free Heap:</td>
+        <td>%FREE_HEAP% KB</td>
+    </tr>
+    <tr>
+        <td>Free Sketch Space:</td>
+        <td>%FREE_SKETCH_SPACE% KB</td>
+    </tr>
+</table>
+
+<h2>Network</h2>
+
+<h3>Setup</h3>
+<switch>
+    <input type="checkbox" id="dhcp" />
+    <label for="dhcp">DHCP On</label>
+</switch>
+<p id="dhcpStatus" style="color: green; display: none;"></p>
+
+<form id="networkForm">
+    <table>
+        <!-- Hostname row (always visible) -->
+        <tr>
+            <td>Hostname:</td>
+            <td>
+                <input
+                        type="text"
+                        id="hostname"
+                        placeholder="Enter Hostname"
+                />
+            </td>
+        </tr>
+
+        <!-- IP Row (hidden when DHCP is on) -->
+        <tr id="rowIP">
+            <td>IP:</td>
+            <td>
+                <input
+                        type="text"
+                        id="ip"
+                        placeholder="Enter IP"
+                />
+            </td>
+        </tr>
+
+        <!-- Gateway Row (hidden when DHCP is on) -->
+        <tr id="rowGateway">
+            <td>Gateway:</td>
+            <td>
+                <input
+                        type="text"
+                        id="gateway"
+                        placeholder="Enter Gateway"
+                />
+            </td>
+        </tr>
+
+        <!-- Subnet Row (hidden when DHCP is on) -->
+        <tr id="rowSubnet">
+            <td>Subnet:</td>
+            <td>
+                <input
+                        type="text"
+                        id="subnet"
+                        placeholder="Enter Subnet"
+                />
+            </td>
+        </tr>
+    </table>
+
+    <button type="submit">Submit</button>
+    <p id="submitMessage" style="color: green; display: none;">Settings submitted</p>
+</form>
+
+<button type="button" class="btn btn-danger" id="resetNetworkBtn">
+    Reset network settings
+</button>
+
+<div class="ledstrip">
+    <header>
+        <h2>ledstrip</h2>
+    </header>
+    <div id="alertContainer"></div>
+    <div class="content" id="ledstrip_content"></div>
+
+    <div>
+        <input
+                id="newGPIO"
+                class="fancy"
+                style="width: 100px"
+                maxlength="4"
+                placeholder="Enter pin"
+        />
+        <button class="btn btn-primary" class="fancy" onclick="handleAddGPIO()">Add</button>
+    </div>
+</div>
+
+<!-- JavaScript Files -->
+<script src="api.js"></script>
+<script src="createHTML.js"></script>
+<script src="ledstrip.js"></script>
+<!-- The new main.js for overall page logic -->
+<script src="main.js"></script>
+</body>
+</html>

@@ -9,7 +9,7 @@
  * @url https://github.com/DFRobot/DFRobot_HumanDetection
  */
 
-#include "DFRobot_HumanDetection.h"
+#include "../include/DFRobot_HumanDetection.h"
 #include "stdio.h"
 
 DFRobot_HumanDetection::DFRobot_HumanDetection(Stream *s) : _s(s)

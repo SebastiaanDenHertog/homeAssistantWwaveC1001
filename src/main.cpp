@@ -9,10 +9,7 @@
  * @url https://github.com/dfrobot/DFRobot_C4001
  */
 
-#include <Arduino.h>
-#include "DFRobot_HumanDetection.h"
-#include "driver/rtc_io.h"
-#include <WiFi.h>
+#include "C1001Controller.h"
 
 DFRobot_HumanDetection hu(&Serial2);
 
@@ -20,18 +17,14 @@ RTC_DATA_ATTR int bootCount = 0;
 #define TIME_TO_SLEEP  60 // in sec
 #define uS_TO_S_FACTOR 1000000ULL // omrekenfactor
 
-void initWiFi() {
-  WiFi.mode(WIFI_MODE_AP);
-  WiFi.begin("LeducIot", "");
+void setupincommingWiFiforSetup() {
+  WiFiClass::mode(WIFI_STA);
+  WiFi.begin("esp32", "123456789");
   Serial.print("Connecting to WiFi ");
-  int i = 0;
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFiClass::status() != WL_CONNECTED) {
     Serial.print('.');
-    delay(1000);
-    i++;
-    if (i == 10) break;
   }
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFiClass::status() == WL_CONNECTED) {
     Serial.println();
     Serial.println("Connected to the WiFi network");
     Serial.println(WiFi.localIP());
@@ -41,12 +34,7 @@ void initWiFi() {
   }
 }
 
-void setup() {
-  Serial.begin(115200);
-  Serial2.begin(115200, SERIAL_8N1, 16, 17);
-  WiFiClass::mode(WIFI_STA);
-  initWiFi();
-
+void initC1001() {
   Serial.println("Start initialization");
   while (hu.begin() != 0) {
     Serial.print(".");
@@ -133,44 +121,26 @@ void setup() {
 
   Serial.println();
   Serial.println();
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+  setupincommingWiFiforSetup();
+  if (server.on)
+  initC1001();
 
   //Increment boot number and print it every reboot
   ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
-  //Print the wakeup reason for ESP32
 
-  /*
-  First we configure the wake up source
-  We set our ESP32 to wake up every 5 seconds
-  */
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
-
-  /*
-  Next we decide what all peripherals to shut down/keep on
-  By default, ESP32 will automatically power down the peripherals
-  not needed by the wakeup source, but if you want to be a poweruser
-  this is for you. Read in detail at the API docs
-  http://esp-idf.readthedocs.io/en/latest/api-reference/system/deep_sleep.html
-  Left the line commented as an example of how to configure peripherals.
-  The line below turns off all RTC peripherals in deep sleep.
-  */
-  //esp_deep_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-  //Serial.println("Configured all RTC Peripherals to be powered down in sleep");
-
-  /*
-  Now that we have setup a wake cause and if needed setup the
-  peripherals state in deep sleep, we can now start going to
-  deep sleep.
-  In the case that no wake up sources were provided but deep
-  sleep was started, it will sleep forever unless hardware
-  reset occurs.
-  */
 
   Serial.println("Going to sleep now");
   Serial.flush();
   esp_deep_sleep_start();
-  Serial.println("This will never be printed");
 }
 
 void loop() {}
