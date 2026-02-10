@@ -16,13 +16,12 @@
 
 DFRobot_HumanDetection hu(&Serial2);
 
-#define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
-#define USE_EXT0_WAKEUP          1               // 1 = EXT0 wakeup, 0 = EXT1 wakeup
-#define WAKEUP_GPIO              GPIO_NUM_27     // Only RTC IO are allowed - ESP32 Pin example
 RTC_DATA_ATTR int bootCount = 0;
+#define TIME_TO_SLEEP  60 // in sec
+#define uS_TO_S_FACTOR 1000000ULL // omrekenfactor
 
 void initWiFi() {
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_MODE_AP);
   WiFi.begin("LeducIot", "");
   Serial.print("Connecting to WiFi ");
   int i = 0;
@@ -42,25 +41,6 @@ void initWiFi() {
   }
 }
 
-/*
-  Method to print the reason by which ESP32
-  has been awaken from sleep
-*/
-void print_wakeup_reason() {
-  esp_sleep_wakeup_cause_t wakeup_reason;
-
-  wakeup_reason = esp_sleep_get_wakeup_cause();
-
-  switch (wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
-    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
-  }
-}
-
 void setup() {
   Serial.begin(115200);
   Serial2.begin(115200, SERIAL_8N1, 16, 17);
@@ -75,7 +55,7 @@ void setup() {
   Serial.println("Initialization successful");
 
   Serial.println("Start switching work mode");
-  while (hu.configWorkMode(hu.eSleepMode) != 0) {
+  while (hu.configWorkMode(hu.eFallingMode) != 0) {
     Serial.println("error!!!");
     delay(1000);
   }
@@ -98,15 +78,6 @@ void setup() {
   hu.dmInstallAngle(0,0,180);
   hu.dmInstallHeight(200);
 
-  int i = 0;
-  while (true) {
-    hu.sensorRet();
-    Serial.println(hu.dmGetInstallHeight()); delay(100); i++;
-    if (i > 100) {
-      break;
-    }
-  }
-
   hu.configLEDLight(hu.eHPLed, 1);
   delay(100);
   hu.configLEDLight(hu.eHPLed, 0);  // Set HP LED switch, it will not light up even if the sensor detects a person when set to 0.
@@ -127,52 +98,79 @@ void setup() {
       Serial.println("Read error");
   }
 
+  Serial.print("Existing information:");
+  switch (hu.smHumanData(hu.eHumanPresence)) {
+    case 0:
+      Serial.println("No one is present");
+      break;
+    case 1:
+      Serial.println("Someone is present");
+      Serial.print("moving range: ");
+      Serial.print(hu.smHumanData(hu.eHumanMovingRange));
+      Serial.println();
+      Serial.print("Distance: ");
+      Serial.print(hu.smHumanData(hu.eHumanDistance));
+      Serial.println();
+      break;
+    default:
+      Serial.println("Read error");
+  }
+
+  Serial.print("Motion information:");
+  switch (hu.smHumanData(hu.eHumanMovement)) {
+    case 0:
+      Serial.println("None");
+      break;
+    case 1:
+      Serial.println("Still");
+      break;
+    case 2:
+      Serial.println("Active");
+      break;
+    default:
+      Serial.println("Read error");
+  }
+
   Serial.println();
   Serial.println();
 
   //Increment boot number and print it every reboot
   ++bootCount;
   Serial.println("Boot number: " + String(bootCount));
-
   //Print the wakeup reason for ESP32
-  print_wakeup_reason();
 
   /*
-    First we configure the wake up source
-    We set our ESP32 to wake up for an external trigger.
-    There are two types for ESP32, ext0 and ext1 .
-    ext0 uses RTC_IO to wakeup thus requires RTC peripherals
-    to be on while ext1 uses RTC Controller so does not need
-    peripherals to be powered on.
-    Note that using internal pullups/pulldowns also requires
-    RTC peripherals to be turned on.
+  First we configure the wake up source
+  We set our ESP32 to wake up every 5 seconds
   */
-#if USE_EXT0_WAKEUP
-  esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, 1);  //1 = High, 0 = Low
-  // Configure pullup/downs via RTCIO to tie wakeup pins to inactive level during deepsleep.
-  // EXT0 resides in the same power domain (RTC_PERIPH) as the RTC IO pullup/downs.
-  // No need to keep that power domain explicitly, unlike EXT1.
-  rtc_gpio_pullup_dis(WAKEUP_GPIO);
-  rtc_gpio_pulldown_en(WAKEUP_GPIO);
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) + " Seconds");
 
-#else  // EXT1 WAKEUP
-  //If you were to use ext1, you would use it like
-  esp_sleep_enable_ext1_wakeup_io(BUTTON_PIN_BITMASK(WAKEUP_GPIO), ESP_EXT1_WAKEUP_ANY_HIGH);
   /*
-    If there are no external pull-up/downs, tie wakeup pins to inactive level with internal pull-up/downs via RTC IO
-         during deepsleep. However, RTC IO relies on the RTC_PERIPH power domain. Keeping this power domain on will
-         increase some power comsumption. However, if we turn off the RTC_PERIPH domain or if certain chips lack the RTC_PERIPH
-         domain, we will use the HOLD feature to maintain the pull-up and pull-down on the pins during sleep.
+  Next we decide what all peripherals to shut down/keep on
+  By default, ESP32 will automatically power down the peripherals
+  not needed by the wakeup source, but if you want to be a poweruser
+  this is for you. Read in detail at the API docs
+  http://esp-idf.readthedocs.io/en/latest/api-reference/system/deep_sleep.html
+  Left the line commented as an example of how to configure peripherals.
+  The line below turns off all RTC peripherals in deep sleep.
   */
-  rtc_gpio_pulldown_en(WAKEUP_GPIO);  // GPIO33 is tie to GND in order to wake up in HIGH
-  rtc_gpio_pullup_dis(WAKEUP_GPIO);   // Disable PULL_UP in order to allow it to wakeup on HIGH
-#endif
-  //Go to sleep now
+  //esp_deep_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+  //Serial.println("Configured all RTC Peripherals to be powered down in sleep");
+
+  /*
+  Now that we have setup a wake cause and if needed setup the
+  peripherals state in deep sleep, we can now start going to
+  deep sleep.
+  In the case that no wake up sources were provided but deep
+  sleep was started, it will sleep forever unless hardware
+  reset occurs.
+  */
+
   Serial.println("Going to sleep now");
+  Serial.flush();
   esp_deep_sleep_start();
   Serial.println("This will never be printed");
 }
 
-void loop() {
-  Serial.println("loop");
-}
+void loop() {}
