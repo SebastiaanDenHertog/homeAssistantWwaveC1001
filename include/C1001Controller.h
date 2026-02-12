@@ -73,13 +73,8 @@ public:
 
     // boot starts here
     void setup();
-
     void loop();
-    void initControllerSettings();
-    void reset();
 
-    void beginStrip();
-    void initBusses();
 };
 
 #endif //C1001CONYTOLER_H
